@@ -1,0 +1,89 @@
+syntax="proto3";
+package payment.v1;
+option go_package = "github.com/JahidNishat/payment-gateway/proto/payment/v1;paymentv1";
+
+import "google/protobuf/timestamp.proto";
+
+service PaymentService {
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+}
+
+enum PaymentStatus {
+    PAYMENT_STATUS_UNSPECIFIED = 0;
+    PAYMENT_STATUS_PENDING = 1;
+    PAYMENT_STATUS_PROCESSING = 2;
+    PAYMENT_STATUS_COMPLETED = 3;
+    PAYMENT_STATUS_FAILED = 4;
+    PAYMENT_STATUS_REFUNDED = 5;
+}
+enum RefundStatus {
+    REFUND_STATUS_UNSPECIFIED = 0;
+    REFUND_STATUS_PENDING = 1;
+    REFUND_STATUS_COMPLETED = 2;
+    REFUND_STATUS_FAILED = 3;
+}
+message PaymentSummary {
+    string payment_id = 1;
+    string merchant_id = 2;
+    int64 amount = 3;
+    string currency = 4;
+    PaymentStatus status = 5;
+    google.protobuf.Timestamp created_at = 6;
+}
+
+message CreatePaymentRequest {
+    string idempotency_key = 1;
+    string merchant_id = 2;
+    int64 amount = 3;
+    string currency = 4;
+    string description = 5;
+}
+message CreatePaymentResponse {
+    string payment_id = 1;
+    PaymentStatus status = 2;
+    int64 amount = 3;
+    string currency = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message GetPaymentRequest {
+    string payment_id = 1;
+}
+message GetPaymentResponse {
+    string payment_id = 1;
+    string merchant_id = 2;
+    int64 amount = 3;
+    string currency = 4;
+    string description = 5;
+    PaymentStatus status = 6;
+    google.protobuf.Timestamp created_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+
+message ListPaymentsRequest {
+    string merchant_id = 1;
+    int32 page = 2;
+    int32 limit = 3;
+}
+message ListPaymentsResponse {
+    repeated PaymentSummary payments = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 limit = 4;
+}
+
+message RefundPaymentRequest {
+    string payment_id = 1;
+    int64 amount = 2;
+    string reason = 3;
+}
+message RefundPaymentResponse {
+    string refund_id = 1;
+    string payment_id = 2;
+    int64 amount = 3;
+    string reason = 4;
+    RefundStatus status = 5;
+}
