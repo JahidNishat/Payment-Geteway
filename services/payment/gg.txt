@@ -1,26 +1,56 @@
-Q1: I insert these words into a Trie: "app", "apple", "ape". Draw the Trie structure (use text, like I did above). Mark which nodes have ✓ (isEnd = true).
-Start: node = root
-(root) -> a -> p -> p ✅ -> l -> e✅
-                 -> e ✅
+Question 1
+Using the same OrderService, write a test for the failure case:
 
-Q2: Using the Trie from Q1:
+email sending fails with error "smtp connection refused"
+PlaceOrder should return that error
+Follow the ARRANGE → ACT → ASSERT pattern.
 
-Search("app") → returns what?
-(root) -> a -> p -> p ✅ is marked so found
+type FakeEmailSender struct{
+    err error
+    to string
+    from string
+    called bool
+}
 
-Search("ap") → returns what?
-(root) -> a -> p is not marked so not found
+func(f *FakeEmailSender) Send(to, from string) error {
+    f.called = true
+    f.to = to
+    return f.err
+}
 
-StartsWith("ap") → returns what?
-(root) -> a -> p exists yes, there are words start with ap
+func TestPlaceOrder_SendsEmail(t *testing.T) {
+    // ARRANGE
+    fake := &FakeEmailSender{err: errors.New("smtp connection refused)}
+    svc := &OrderService{emailer: fake}
+    
+    // ACT
+    err := svc.PlaceOrder("nishat@example.com")
+    
+    // ASSERT
+    if err == nil {
+        t.Fatalf("expected error, but got nil")
+    }
+    if !fake.called {
+        t.Fatal("expected email to be sent, but Send was never called")
+    }
+    if fake.calledWith != "nishat@example.com" {
+        t.Errorf("sent to %s, want nishat@example.com", fake.calledWith)
+    }
+}
 
-Search("application") → returns what?
-(root) -> a -> p -> p ✅ -> l -> e✅
-                 -> e ✅
-                 no i after l, not exists
 
-Q3: Why is children an array of size 26 and not a HashMap? What's the tradeoff?
-space O(N*L*26) each node has 26 children slots. Can be wasteful if words don't share prefixes.
+Question 2
+In your Payment Gateway, your service depends on three interfaces:
 
-Q4: If I insert 1 million words that all start with "pre" (like "predict", "prepare", "present"...), how many times is the path p → r → e stored in the Trie?
-each only one time, total 3 times
+PaymentRepository
+PaymentProcessor
+EventPublisher
+In one sentence each, tell me what each fake should control and what each fake should record.
+
+Example format:
+
+FakeX controls ____. FakeX records ____.
+
+Fake PaymentRepository controls when createpayment called, it returned err or not; records when it called with all the nesessary arguments?
+Fake PaymentProcessor controls when processpayment called, it returned nesessary info; records when it called, it got all the arguments?
+Fake EventPublisher controls when Publish is called, it retrun with our desired state?; records when it called, it got all the arguments?

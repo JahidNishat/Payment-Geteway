@@ -17,7 +17,7 @@ type ValidationError struct {
 }
 
 func (e *ValidationError) Error() string {
-	return "validation error"
+	return fmt.Sprintf("validation failed: %v", e.Errors)
 }
 
 // Conflict Error
