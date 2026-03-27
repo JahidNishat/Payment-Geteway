@@ -37,6 +37,7 @@ type Payment struct {
 	Status         string    `json:"status" db:"status"`
 	Description    *string   `json:"description,omitempty" db:"description"`
 	Metadata       []byte    `json:"metadata,omitempty" db:"metadata"`
+	TxnID          *string   `json:"txn_id,omitempty" db:"txn_id"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -70,4 +71,26 @@ func IsValidTransition(from, to string) bool {
 		}
 	}
 	return false
+}
+
+type CreatePaymentRequest struct {
+	IdempotencyKey string         `json:"idempotency_key" validate:"required,min=2,max=255"`
+	MerchantID     string         `json:"merchant_id" validate:"required,min=2,max=255"`
+	Amount         int64          `json:"amount" validate:"required,gt=0"`
+	Currency       string         `json:"currency" validate:"required,len=3"`
+	Description    *string        `json:"description,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+}
+
+type RefundRequest struct {
+	PaymentID string `json:"payment_id" validate:"required,uuid4"`
+	Amount    int64  `json:"amount" validate:"required,gt=0"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+func SafeString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -8,12 +8,14 @@ CREATE TABLE IF NOT EXISTS payments (
     status VARCHAR(20) NOT NULL CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUNDED')),
     description TEXT,
     metadata JSONB,
+    txn_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_payments_merchant_id ON payments(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_merchant_id_idempotency_key ON payments(merchant_id, idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_payments_txn_id ON payments(txn_id);
 
 -- Create payment_events table
 CREATE TABLE IF NOT EXISTS payment_events (

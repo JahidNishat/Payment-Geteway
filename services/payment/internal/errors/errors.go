@@ -13,12 +13,11 @@ func (e *NotFoundError) Error() string {
 
 // Validation Error
 type ValidationError struct {
-	Field   string
-	Message string
+	Errors map[string][]string
 }
 
 func (e *ValidationError) Error() string {
-	return fmt.Sprintf("validation error: %s - %s", e.Field, e.Message)
+	return "validation error"
 }
 
 // Conflict Error

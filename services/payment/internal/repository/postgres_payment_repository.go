@@ -18,6 +18,9 @@ func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
+var _ PaymentRepository = (*PostgresRepository)(nil)
+
+// ========== Create Payment Repository ==========
 func (p *PostgresRepository) CreatePayment(ctx context.Context, payment *model.Payment) error {
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -26,8 +29,8 @@ func (p *PostgresRepository) CreatePayment(ctx context.Context, payment *model.P
 	defer tx.Rollback()
 
 	err = tx.QueryRowContext(ctx,
-		`INSERT INTO payments (idempotency_key, merchant_id, amount, currency, status, description, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at, updated_at`,
-		payment.IdempotencyKey, payment.MerchantID, payment.Amount, payment.Currency, payment.Status, payment.Description, payment.Metadata).Scan(&payment.ID, &payment.CreatedAt, &payment.UpdatedAt)
+		`INSERT INTO payments (idempotency_key, merchant_id, amount, currency, status, description) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`,
+		payment.IdempotencyKey, payment.MerchantID, payment.Amount, payment.Currency, payment.Status, payment.Description).Scan(&payment.ID, &payment.CreatedAt, &payment.UpdatedAt)
 	if err != nil {
 		if dbhelper.IsDuplicate(err) {
 			return &errors.ConflictError{
@@ -49,6 +52,8 @@ func (p *PostgresRepository) CreatePayment(ctx context.Context, payment *model.P
 	return tx.Commit()
 }
 
+
+// ========== Get Payment Repository ==========
 func (p *PostgresRepository) GetPaymentByID(ctx context.Context, id string) (*model.Payment, error) {
 	var payment model.Payment
 	err := p.db.GetContext(ctx, &payment, "SELECT * FROM payments WHERE id = $1", id)
@@ -64,7 +69,9 @@ func (p *PostgresRepository) GetPaymentByID(ctx context.Context, id string) (*mo
 	return &payment, nil
 }
 
-func (p *PostgresRepository) UpdatePaymentStatus(ctx context.Context, id, newStatus, reason string) error {
+
+// ========== Update Payment Status Repository ==========
+func (p *PostgresRepository) UpdatePaymentStatus(ctx context.Context, id, newStatus, reason string, txnID *string) error {
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -87,7 +94,7 @@ func (p *PostgresRepository) UpdatePaymentStatus(ctx context.Context, id, newSta
 		return fmt.Errorf("invalid status transition from %s to %s", currentStatus, newStatus)
 	}
 
-	_, err = tx.ExecContext(ctx, "UPDATE payments SET status = $1, updated_at = NOW() WHERE id = $2", newStatus, id)
+	_, err = tx.ExecContext(ctx, "UPDATE payments SET status = $1, txn_id = COALESCE($2, txn_id), updated_at = NOW() WHERE id = $3", newStatus, txnID, id)
 	if err != nil {
 		return fmt.Errorf("failed to update payment status: %w", err)
 	}
@@ -102,6 +109,8 @@ func (p *PostgresRepository) UpdatePaymentStatus(ctx context.Context, id, newSta
 	return tx.Commit()
 }
 
+
+// ========== List Payments Repository ==========
 func (p *PostgresRepository) ListPaymentsByMerchantID(ctx context.Context, merchantID string, page, limit int) ([]*model.Payment, int, error) {
 	var total int
 	err := p.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM payments WHERE merchant_id = $1", merchantID)
@@ -119,6 +128,8 @@ func (p *PostgresRepository) ListPaymentsByMerchantID(ctx context.Context, merch
 	return payments, total, nil
 }
 
+
+// ========== Create Refund Repository ==========
 func (p *PostgresRepository) CreateRefund(ctx context.Context, refund *model.Refund) error {
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -178,6 +189,8 @@ func (p *PostgresRepository) CreateRefund(ctx context.Context, refund *model.Ref
 	return tx.Commit()
 }
 
+
+// ========== Get Refunds Repository ==========
 func (p *PostgresRepository) GetRefundsByPaymentID(ctx context.Context, paymentID string) ([]*model.Refund, error) {
 	var refunds []*model.Refund
 	err := p.db.SelectContext(ctx, &refunds, "SELECT * FROM refunds WHERE payment_id = $1 ORDER BY created_at DESC", paymentID)

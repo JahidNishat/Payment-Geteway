@@ -1,0 +1,26 @@
+Q1: I insert these words into a Trie: "app", "apple", "ape". Draw the Trie structure (use text, like I did above). Mark which nodes have ✓ (isEnd = true).
+Start: node = root
+(root) -> a -> p -> p ✅ -> l -> e✅
+                 -> e ✅
+
+Q2: Using the Trie from Q1:
+
+Search("app") → returns what?
+(root) -> a -> p -> p ✅ is marked so found
+
+Search("ap") → returns what?
+(root) -> a -> p is not marked so not found
+
+StartsWith("ap") → returns what?
+(root) -> a -> p exists yes, there are words start with ap
+
+Search("application") → returns what?
+(root) -> a -> p -> p ✅ -> l -> e✅
+                 -> e ✅
+                 no i after l, not exists
+
+Q3: Why is children an array of size 26 and not a HashMap? What's the tradeoff?
+space O(N*L*26) each node has 26 children slots. Can be wasteful if words don't share prefixes.
+
+Q4: If I insert 1 million words that all start with "pre" (like "predict", "prepare", "present"...), how many times is the path p → r → e stored in the Trie?
+each only one time, total 3 times
