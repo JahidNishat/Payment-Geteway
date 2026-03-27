@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/model"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/processor"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/repository"
+	"github.com/google/uuid"
 )
 
 // ========== Fake Payment Repository ==========
@@ -259,5 +261,75 @@ func TestCreatePayment_HappyPath(t *testing.T) {
 	}
 	if fakePublisher.called == false {
 		t.Error("expected Publish to be called on event publisher, but it was not")
+	}
+}
+
+func TestCreatePayment_Idempotency(t *testing.T) {
+	existingPayment := &model.Payment{
+		ID:             uuid.New(),
+		MerchantID:     "merchant123",
+		Currency:       "USD",
+		IdempotencyKey: "test-idem-key-123",
+		Amount:         1000,
+		Status:         model.PaymentStatusCompleted,
+	}
+	fakeRepo := &fakePaymentRepo{
+		getByIdemKeyResp: existingPayment,
+	}
+	fakeProcessor := &fakePaymentProcessor{}
+	fakePublisher := &fakeEventPublisher{}
+	svc := NewPaymentService(fakeRepo, fakeProcessor, fakePublisher)
+	req := &model.CreatePaymentRequest{
+		MerchantID:     "merchant123",
+		Currency:       "USD",
+		IdempotencyKey: "test-idem-key-123",
+		Amount:         1000,
+	}
+	resp, err := svc.CreatePayment(context.Background(), req)
+	if err != nil {
+		t.Fatalf("expected no error, but got: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response, but got nil")
+	}
+	if resp.ID != existingPayment.ID {
+		t.Errorf("expected payment ID %q, got %q", existingPayment.ID, resp.ID)
+	}
+	if resp.Status != existingPayment.Status {
+		t.Errorf("expected status %q, got %q", existingPayment.Status, resp.Status)
+	}
+	if fakeRepo.createPaymentCalled == true {
+		t.Error("expected CreatePayment to NOT be called on repository due to idempotency hit, but it was called")
+	}
+	if fakePublisher.called == true {
+		t.Error("expected Publish to NOT be called on event publisher due to idempotency hit, but it was called")
+	}
+}
+
+func TestCreatePayment_ProcessorFailure(t *testing.T) {
+	fakeRepo := &fakePaymentRepo{}
+	fakeProcessor := &fakePaymentProcessor{
+		err: errors.New("processor failure"),
+	}
+	fakePublisher := &fakeEventPublisher{}
+	svc := NewPaymentService(fakeRepo, fakeProcessor, fakePublisher)
+	req := &model.CreatePaymentRequest{
+		MerchantID:     "merchant123",
+		Currency:       "USD",
+		IdempotencyKey: "test-idem-key-123",
+		Amount:         1000,
+	}
+	_, err := svc.CreatePayment(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected error due to processor failure, but got nil")
+	}
+	if fakeRepo.createPaymentCalled == false {
+		t.Error("expected CreatePayment to be called on repository even when processor fails, but it was not called")
+	}
+	if !slices.Contains(fakeRepo.statusUpdates, model.PaymentStatusProcessing) {
+		t.Error("expected status update to include processing status even when processor fails")
+	}
+	if !slices.Contains(fakeRepo.statusUpdates, model.PaymentStatusFailed) {
+		t.Error("expected status update to include failed status due to processor failure")
 	}
 }
