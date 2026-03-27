@@ -13,6 +13,7 @@ import (
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/config"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/events"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/handler"
+	"github.com/JahidNishat/payment-gateway/services/payment/internal/interceptor"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/processor"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/repository"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/service"
@@ -57,7 +58,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptor.RecoveryInterceptor, // outermost to catch panics
+			interceptor.LoggingInterceptor,  // innermost to log request details
+		),
+	)
 	reflection.Register(grpcServer)
 	pb.RegisterPaymentServiceServer(grpcServer, h)
 
