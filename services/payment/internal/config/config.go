@@ -10,6 +10,7 @@ import (
 type Config struct {
 	DBURL    string
 	GRPCPort string
+	NatsURL  string
 }
 
 func getEnv(key string) string {
@@ -41,8 +42,10 @@ func Load() (*Config, error) {
 	}
 
 	grpcPort := getOrDefault("GRPC_PORT", "50051")
+	natsURL := getOrDefault("NATS_URL", "nats://localhost:4222")
 	return &Config{
 		DBURL:    dbURL,
 		GRPCPort: grpcPort,
+		NatsURL:  natsURL,
 	}, nil
 }

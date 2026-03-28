@@ -3,7 +3,7 @@ PAYMENT_PROTO = $(PROTO_DIR)/payment/v1/payment.proto
 GEN_DIR = gen/go
 MIGRATIONS_DIR = services/payment/migrations
 MFILE_NAME ?= create_payment_table
-DB_URL = postgres://postgres:postgres@localhost:5432/payment_gateway?sslmode=disable
+DB_URL = postgres://payment_user:payment_pass@localhost:5433/payment_db?sslmode=disable
 
 .PHONY: proto-gen clean migrate migup migdown
 

@@ -48,7 +48,16 @@ func main() {
 	// Initialize the layers
 	repo := repository.NewPostgresRepository(db)
 	paymentProcessor := processor.NewSimulatePaymentProcessor()
-	eventPublisher := events.NewLogPublisher()
+
+	// Connect to NATS for event publishing
+	eventPublisher, err := events.NewNatsPublisher(cfg.NatsURL)
+	if err != nil {
+		slog.Error("failed to create NATS publisher", "error", err)
+		os.Exit(1)
+	}
+	defer eventPublisher.Close()
+	slog.Info("connected to NATS event publisher")
+
 	svc := service.NewPaymentService(repo, paymentProcessor, eventPublisher)
 	h := handler.NewPaymentHandler(svc)
 
