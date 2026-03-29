@@ -9,6 +9,7 @@ import (
 
 	"github.com/JahidNishat/payment-gateway/services/notification/internal/config"
 	"github.com/JahidNishat/payment-gateway/services/notification/internal/consumer"
+	"github.com/JahidNishat/payment-gateway/services/notification/internal/webhook"
 )
 
 func main() {
@@ -26,7 +27,8 @@ func main() {
 	}
 
 	// Initialize NATS consumer
-	consumer, err := consumer.NewNatsConsumer(cfg.NatsURL)
+	webhookSender := webhook.NewWebhookSender() // You can implement this to send actual webhooks
+	consumer, err := consumer.NewNatsConsumer(cfg.NatsURL, webhookSender)
 	if err != nil {
 		slog.Error("failed to create NATS consumer", "error", err)
 		return

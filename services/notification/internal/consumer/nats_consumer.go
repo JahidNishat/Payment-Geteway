@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/JahidNishat/payment-gateway/services/notification/internal/webhook"
 	"github.com/nats-io/nats.go"
 )
 
 type NatsConsumer struct {
-	js  nats.JetStreamContext
-	nc  *nats.Conn
-	sub *nats.Subscription
+	js      nats.JetStreamContext
+	nc      *nats.Conn
+	sub     *nats.Subscription
+	webhook webhook.WebhookInterface
 }
 
-func NewNatsConsumer(url string) (*NatsConsumer, error) {
+func NewNatsConsumer(url string, webhookSender webhook.WebhookInterface) (*NatsConsumer, error) {
 	nc, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
@@ -26,12 +28,13 @@ func NewNatsConsumer(url string) (*NatsConsumer, error) {
 	}
 
 	return &NatsConsumer{
-		js: js,
-		nc: nc,
+		js:      js,
+		nc:      nc,
+		webhook: webhookSender,
 	}, nil
 }
 
-func handleMessage(msg *nats.Msg) {
+func (c *NatsConsumer) handleMessage(msg *nats.Msg) {
 	slog.Info("received message", "subject", msg.Subject, "data", string(msg.Data))
 	var event PaymentEvent
 	if err := json.Unmarshal(msg.Data, &event); err != nil {
@@ -41,7 +44,21 @@ func handleMessage(msg *nats.Msg) {
 	}
 
 	// TODO: Process the event (e.g., update database, send notification)
-	slog.Info("processed event", "payment_id", event.PaymentID, "status", event.Status)
+	whResp := c.webhook.Send(&webhook.WebhookPayload{
+		PaymentID:   event.PaymentID,
+		MerchantID:  event.MerchantID,
+		Amount:      event.Amount,
+		Currency:    event.Currency,
+		PaymentType: event.PaymentType,
+		Status:      event.Status,
+		Timestamp:   event.Timestamp,
+	})
+	slog.Info("webhook sent",
+		"success", whResp.Success,
+		"status_code", whResp.StatusCode,
+		"duration_ms", whResp.Duration.Milliseconds(),
+		"error", whResp.Error,
+	)
 	msg.Ack()
 }
 
@@ -49,7 +66,7 @@ func (c *NatsConsumer) Start() error {
 	subject := "payments.>"
 	sub, err := c.js.Subscribe(
 		subject,
-		handleMessage,
+		c.handleMessage,
 		nats.Durable("notification-worker"),
 		nats.DeliverAll(),
 		nats.AckExplicit(),
