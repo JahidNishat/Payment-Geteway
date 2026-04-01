@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -9,7 +10,10 @@ import (
 
 	"github.com/JahidNishat/payment-gateway/services/notification/internal/config"
 	"github.com/JahidNishat/payment-gateway/services/notification/internal/consumer"
+	"github.com/JahidNishat/payment-gateway/services/notification/internal/repository"
 	"github.com/JahidNishat/payment-gateway/services/notification/internal/webhook"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -26,9 +30,21 @@ func main() {
 		return
 	}
 
+	//Initialize DB
+	db, err := sqlx.Connect("postgres", cfg.DBURL)
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		return
+	}
+	defer db.Close()
+	slog.Info("connected to database")
+
 	// Initialize NATS consumer
-	webhookSender := webhook.NewWebhookSender() // You can implement this to send actual webhooks
-	consumer, err := consumer.NewNatsConsumer(cfg.NatsURL, webhookSender)
+	ctx := context.Background()
+
+	webhookSender := webhook.NewWebhookSender()
+	webhookRepo := repository.NewPostgresRepository(db)
+	consumer, err := consumer.NewNatsConsumer(ctx, cfg.NatsURL, webhookSender, webhookRepo)
 	if err != nil {
 		slog.Error("failed to create NATS consumer", "error", err)
 		return

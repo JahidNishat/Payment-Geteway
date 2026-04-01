@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_webhook_attempts_payment_id_attempt;

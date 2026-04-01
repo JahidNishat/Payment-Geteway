@@ -28,4 +28,5 @@ type WebhookResult struct {
 	Error      error         `json:"error,omitempty"`
 	Attempts   int           `json:"attempts"`
 	Permanent  bool          `json:"permanent"`
+	URL        string        `json:"url"`
 }

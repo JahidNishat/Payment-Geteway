@@ -51,9 +51,7 @@ func (s *WebhookSender) Send(payload *WebhookPayload) *WebhookResult {
 
 		if attempt < MaxRetries {
 			time.Sleep(RetryDelay * time.Duration(1<<(attempt-1)))
-
 		}
-
 	}
 	return lastResult
 }
@@ -67,6 +65,7 @@ func (s *WebhookSender) doSend(payload *WebhookPayload) *WebhookResult {
 			Error:     fmt.Errorf("no webhook URL configured for merchant: %s", payload.MerchantID),
 			Duration:  time.Since(start),
 			Permanent: true,
+			URL:       url,
 		}
 	}
 
@@ -77,6 +76,7 @@ func (s *WebhookSender) doSend(payload *WebhookPayload) *WebhookResult {
 			Error:     fmt.Errorf("failed to marshal payload for merchant %s: %w", payload.MerchantID, err),
 			Duration:  time.Since(start),
 			Permanent: true,
+			URL:       url,
 		}
 	}
 
@@ -87,6 +87,7 @@ func (s *WebhookSender) doSend(payload *WebhookPayload) *WebhookResult {
 			Error:     fmt.Errorf("failed to create request for merchant %s: %w", payload.MerchantID, err),
 			Duration:  time.Since(start),
 			Permanent: true,
+			URL:       url,
 		}
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -98,6 +99,7 @@ func (s *WebhookSender) doSend(payload *WebhookPayload) *WebhookResult {
 			Error:     fmt.Errorf("failed to send webhook to merchant %s: %w", payload.MerchantID, err),
 			Duration:  time.Since(start),
 			Permanent: false,
+			URL:       url,
 		}
 	}
 	defer resp.Body.Close()
@@ -107,5 +109,6 @@ func (s *WebhookSender) doSend(payload *WebhookPayload) *WebhookResult {
 		StatusCode: resp.StatusCode,
 		Duration:   time.Since(start),
 		Permanent:  false,
+		URL:        url,
 	}
 }

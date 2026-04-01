@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS idx_webhook_attempts_payment_id_attempt ON webhook_attempts (payment_id, attempt);
