@@ -1,0 +1,5 @@
+payment-data/
+nats-data/
+.git/
+.env
+*.md
