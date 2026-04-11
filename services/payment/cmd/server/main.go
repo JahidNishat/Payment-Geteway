@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -17,7 +18,11 @@ import (
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/processor"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/repository"
 	"github.com/JahidNishat/payment-gateway/services/payment/internal/service"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -44,6 +49,13 @@ func main() {
 	}
 	defer db.Close()
 	slog.Info("connected to database")
+
+	// Run Migrations
+	if err := runMigration(cfg.DBURL); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("database migrations completed successfully")
 
 	// Initialize the layers
 	repo := repository.NewPostgresRepository(db)
@@ -106,4 +118,21 @@ func main() {
 	case <-stopped:
 		slog.Info("server stopped gracefully")
 	}
+}
+
+func runMigration(dbURL string) error {
+	m, err := migrate.New(
+		"file://migrations", //Path to migration files in the container
+		dbURL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	// Run the migrations
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return nil
 }

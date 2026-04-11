@@ -14,11 +14,14 @@ RUN go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/payment-service ./cmd/server/main.go
 
+# Runtime stage
 FROM alpine:3.23
 
 WORKDIR /app
 
 COPY --from=builder /app/payment-service .
+
+COPY --from=builder /app/services/payment/migrations ./migrations
 
 EXPOSE 50051
 
